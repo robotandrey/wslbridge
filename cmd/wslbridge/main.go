@@ -12,7 +12,13 @@ import (
 )
 
 func main() {
-	rt, err := runtime.New(execx.OSRunner{}, platform.Detect())
+	platformInfo, err := platform.Detect()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	rt, err := runtime.New(execx.OSRunner{}, platformInfo)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
