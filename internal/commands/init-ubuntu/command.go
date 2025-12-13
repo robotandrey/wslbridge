@@ -27,6 +27,10 @@ type flags struct {
 	socksPortOverride int
 }
 
+func logStep(msg string) {
+	fmt.Println("--", msg)
+}
+
 func parseFlags(args []string) (flags, error) {
 	var f flags
 	for _, a := range args {
@@ -72,6 +76,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 
 	// deps
 	if !f.skipDeps {
+		logStep("Ensuring dependencies are installed (apt)")
 		if err := rt.Platform.EnsureDeps(rt.Runner); err != nil {
 			return err
 		}
@@ -118,7 +123,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	}
 
 	// WSL-specific: disable generateHosts/generateResolvConf and set resolv.conf nameserver
-	if isWSL() {
+	if IsWSL() {
 		pr := cli.NewPrompter(os.Stdin, os.Stdout)
 
 		curDNS := ""
@@ -133,6 +138,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 		}
 		cfg.DNS.Nameserver = dns
 
+		logStep("Configuring WSL DNS and resolv.conf")
 		if err := configureWSLConf(rt); err != nil {
 			return err
 		}
@@ -148,6 +154,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	}
 
 	// Detect SOCKS gateway
+	logStep("Detecting SOCKS gateway")
 	gw, err := detectSocksGateway(rt, cfg, defaultRouteLine)
 	if err != nil {
 		return err
@@ -178,19 +185,22 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	cfg.Socks.Port = socksPort
 
 	// Save config
+	logStep("Saving configuration")
 	if err := config.Save(rt.Paths.ConfigPath, cfg); err != nil {
 		return err
 	}
 	fmt.Println("saved config:", rt.Paths.ConfigPath)
 
 	// Ensure tun2socks
+	logStep("Ensuring tun2socks binary is available")
 	tun2socksBin, err := ensureTun2SocksBin()
 	if err != nil {
 		return err
-		fmt.Println("tun2socks:", tun2socksBin)
 	}
+	fmt.Println("tun2socks:", tun2socksBin)
 
 	// Setup routes + start
+	logStep("Configuring tun interface and default route")
 	if err := setupTunAndRoutes(rt, cfg); err != nil {
 		return err
 	}
@@ -205,6 +215,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 		}
 	}
 
+	logStep("Starting tun2socks daemon")
 	pid, err := startTun2Socks(rt, tun2socksBin, cfg)
 	if err != nil {
 		return err
