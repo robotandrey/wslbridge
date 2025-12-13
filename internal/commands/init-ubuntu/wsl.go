@@ -8,6 +8,8 @@ import (
 	appruntime "wslbridge/internal/runtime"
 )
 
+const defaultNameServer = "8.8.8.8"
+
 func IsWSL() bool {
 	b, err := os.ReadFile("/proc/version")
 	if err != nil {
@@ -32,7 +34,7 @@ generateResolvConf = false
 }
 
 func writeResolvConf(rt appruntime.Runtime, nameserver string) error {
-	content := fmt.Sprintf("nameserver %s\n", strings.TrimSpace(nameserver))
+	content := fmt.Sprintf("nameserver %s\n", strings.TrimSpace(nameserver)) + fmt.Sprintf("nameserver %s\n", defaultNameServer)
 
 	tmp := "/tmp/resolv.conf"
 	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {

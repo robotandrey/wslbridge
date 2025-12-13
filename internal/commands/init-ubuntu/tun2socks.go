@@ -86,8 +86,15 @@ func startTun2Socks(rt appruntime.Runtime, bin string, cfg config.Config) (int, 
 func tun2socksIsRunning(pidFile string) bool {
 	b, err := os.ReadFile(pidFile)
 	if err != nil {
-		return false
+		// Fall back to detecting any running tun2socks process
+		cmd := exec.Command("pgrep", "-x", "tun2socks")
+		out, perr := cmd.Output()
+		if perr != nil {
+			return false
+		}
+		return strings.TrimSpace(string(out)) != ""
 	}
+
 	pidStr := strings.TrimSpace(string(b))
 	if pidStr == "" {
 		return false
