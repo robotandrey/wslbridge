@@ -1,12 +1,12 @@
 package commands
 
-import "wslbridge/internal/command"
+import (
+	"wslbridge/internal/command"
+	init "wslbridge/internal/commands/init"
+)
 
 func All() []command.Command {
 	return []command.Command{
-		InitUbuntu{},
-		// AddDB{},
-		// Up{},
-		// Down{},
+		init.Command{},
 	}
 }

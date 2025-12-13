@@ -16,5 +16,13 @@ func New(r execx.Runner, p platform.Platform) (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
+
+	// ✅ default: config lives in project root
+	cfgPath, err := ResolveProjectLocalConfigPath()
+	if err != nil {
+		return Runtime{}, err
+	}
+	paths.ConfigPath = cfgPath
+
 	return Runtime{Paths: paths, Runner: r, Platform: p}, nil
 }

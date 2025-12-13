@@ -17,6 +17,10 @@ type Config struct {
 		Dev  string `yaml:"dev"`
 		CIDR string `yaml:"cidr"`
 	} `yaml:"tun"`
+
+	DNS struct {
+		Nameserver string `yaml:"nameserver"`
+	} `yaml:"dns"`
 }
 
 func Load(path string) (Config, error) {

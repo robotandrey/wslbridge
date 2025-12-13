@@ -16,15 +16,27 @@ func (Ubuntu) EnsureDeps(r execx.Runner) error {
 		return fmt.Errorf("apt not found: expected ubuntu/debian")
 	}
 
-	pkgs := []string{
-		"curl",
-		"ca-certificates",
-		"golang-go",
-		"dnsutils",
-		"netcat-openbsd",
-		"socat",
-		"postgresql-client",
-		"iproute2",
+	// Команда -> пакет
+	need := map[string]string{
+		"curl":  "curl",
+		"dig":   "dnsutils",
+		"nc":    "netcat-openbsd",
+		"socat": "socat",
+		"psql":  "postgresql-client",
+		"ip":    "iproute2",
+		"go":    "golang-go",
+	}
+
+	var pkgs []string
+	for bin, pkg := range need {
+		if _, err := exec.LookPath(bin); err != nil {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+
+	// Всё есть — вообще ничего не делаем.
+	if len(pkgs) == 0 {
+		return nil
 	}
 
 	if err := r.Run("sudo", "apt", "update"); err != nil {

@@ -34,3 +34,11 @@ func ValidatePort(s string) error {
 	}
 	return nil
 }
+
+func ValidateIP(s string) error {
+	s = strings.TrimSpace(s)
+	if net.ParseIP(s) == nil {
+		return fmt.Errorf("must be a valid IP address")
+	}
+	return nil
+}
