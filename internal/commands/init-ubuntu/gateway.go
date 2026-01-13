@@ -53,15 +53,72 @@ func inferWSLGatewayFromEth0(rt appruntime.Runtime) (string, error) {
 		return "", fmt.Errorf("could not read eth0 IPv4 CIDR")
 	}
 
-	_, ipnet, err := net.ParseCIDR(cidr)
+	hostIP, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return "", fmt.Errorf("parse eth0 cidr %q: %w", cidr, err)
 	}
 
-	nip := ipnet.IP.To4()
-	if nip == nil {
+	host4 := hostIP.To4()
+	if host4 == nil {
 		return "", fmt.Errorf("eth0 ip is not ipv4")
 	}
-	nip[3] += 1 // network + 1
-	return nip.String(), nil
+
+	// Prefer nameserver in the same subnet (often Windows host IP in WSL).
+	if ns, ok := readResolvConfNameserver("/etc/resolv.conf"); ok {
+		if nsIP := net.ParseIP(ns).To4(); nsIP != nil {
+			if ipnet.Contains(nsIP) && !nsIP.Equal(host4) {
+				return nsIP.String(), nil
+			}
+		}
+	}
+
+	netIP := ipnet.IP.To4()
+	if netIP == nil {
+		return "", fmt.Errorf("eth0 ip is not ipv4")
+	}
+	gw, err := incrementIPv4(netIP)
+	if err != nil {
+		return "", fmt.Errorf("infer gateway from eth0 network: %w", err)
+	}
+	if gw.Equal(host4) {
+		gw, err = incrementIPv4(gw)
+		if err != nil {
+			return "", fmt.Errorf("infer gateway from eth0 network: %w", err)
+		}
+	}
+	return gw.String(), nil
+}
+
+func readResolvConfNameserver(path string) (string, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "nameserver" {
+			return fields[1], true
+		}
+	}
+	return "", false
+}
+
+func incrementIPv4(ip net.IP) (net.IP, error) {
+	ip = ip.To4()
+	if ip == nil {
+		return nil, fmt.Errorf("ip is not ipv4")
+	}
+	out := make(net.IP, len(ip))
+	copy(out, ip)
+	for i := len(out) - 1; i >= 0; i-- {
+		out[i]++
+		if out[i] != 0 {
+			return out, nil
+		}
+	}
+	return nil, fmt.Errorf("ipv4 overflow")
 }

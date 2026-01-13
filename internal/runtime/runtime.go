@@ -16,9 +16,8 @@ func New(r execx.Runner, p platform.Platform) (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
-
-	// ✅ default: config lives in project root
-	cfgPath, err := ResolveProjectLocalConfigPath()
+	// default: prefer project-local config when in wslbridge repo
+	cfgPath, err := ResolveConfigPath()
 	if err != nil {
 		return Runtime{}, err
 	}

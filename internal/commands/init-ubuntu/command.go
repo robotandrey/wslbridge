@@ -88,7 +88,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	if c, err := config.Load(rt.Paths.ConfigPath); err == nil {
 		cfg = c
 		hasCfg = true
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -216,7 +216,7 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	}
 
 	logStep("Starting tun2socks daemon")
-	pid, err := startTun2Socks(rt, tun2socksBin, cfg)
+	pid, err := startTun2Socks(tun2socksBin, cfg)
 	if err != nil {
 		return err
 	}

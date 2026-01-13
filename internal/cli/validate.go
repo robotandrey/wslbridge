@@ -21,6 +21,11 @@ func ValidateHostOrIP(s string) error {
 	if strings.HasPrefix(s, ".") || strings.HasSuffix(s, ".") || strings.Contains(s, "..") {
 		return fmt.Errorf("invalid hostname format")
 	}
+	for _, label := range strings.Split(s, ".") {
+		if label == "" || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return fmt.Errorf("invalid hostname format")
+		}
+	}
 	return nil
 }
 
