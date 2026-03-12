@@ -8,23 +8,28 @@ import (
 
 	"wslbridge/internal/config"
 	appruntime "wslbridge/internal/runtime"
+	"wslbridge/internal/tun2socks"
 )
 
+// StopCommand implements the Ubuntu/WSL stop workflow.
 type StopCommand struct{}
 
+// Name returns the command name.
 func (StopCommand) Name() string { return "stop-ubuntu" }
+
+// Help returns the command description.
 func (StopCommand) Help() string { return "Stop tun2socks and restore routes (Ubuntu/WSL)" }
 
+// Run executes the stop workflow for Ubuntu/WSL.
 func (StopCommand) Run(rt appruntime.Runtime, args []string) error {
 	if err := parseStopFlags(args); err != nil {
 		return err
 	}
 
-	// load config (optional)
 	var cfg config.Config
 	if c, err := config.Load(rt.Paths.ConfigPath); err == nil {
 		cfg = c
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -48,7 +53,7 @@ func (StopCommand) Run(rt appruntime.Runtime, args []string) error {
 	}
 
 	logStep("Stopping tun2socks (if running)")
-	if err := stopTun2SocksIfRunning(rt, rt.Paths.Tun2SocksPIDFile); err != nil {
+	if err := tun2socks.StopIfRunning(rt, rt.Paths.Tun2SocksPIDFile); err != nil {
 		return err
 	}
 
@@ -56,7 +61,7 @@ func (StopCommand) Run(rt appruntime.Runtime, args []string) error {
 	_ = rt.Runner.Run("sudo", "ip", "link", "set", cfg.Tun.Dev, "down")
 	_ = rt.Runner.Run("sudo", "ip", "tuntap", "del", "mode", "tun", "dev", cfg.Tun.Dev)
 
-	if IsWSL() {
+	if isWSL() {
 		logStep("Restoring WSL config (if backup exists)")
 		if restored, err := restoreWSLConf(rt); err != nil {
 			return err

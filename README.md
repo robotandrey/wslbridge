@@ -56,6 +56,15 @@ wslbridge init --force --socks-port=1080
 
 ---
 
+## Команды
+
+- `wslbridge init` — настройка DNS/роутинга и запуск `tun2socks`
+- `wslbridge status` — показать текущий статус
+- `wslbridge stop` — остановить `tun2socks` и вернуть маршруты
+- `wslbridge help` — краткая справка по доступным командам
+
+---
+
 ## Полезные флаги
 
 - `--skip-deps` — не устанавливать системные зависимости через `apt`
@@ -74,6 +83,24 @@ wslbridge init --force --socks-port=1080
 
 ## Диагностика
 
+- Посмотреть статус: `wslbridge status`
+- Остановить и вернуть маршруты: `wslbridge stop`
 - Проверить маршрут по умолчанию: `ip route show default`
 - Проверить, что `tun2socks` жив: `kill -0 $(cat ~/.local/state/wslbridge/tun2socks.pid)`
 - Если трафик не идёт, загляните в `/tmp/tun2socks.log` и убедитесь, что SOCKS-прокси доступен из WSL.
+
+Пример:
+
+```bash
+wslbridge status
+Config: /home/<user>/source/repos/go/wslbridge/.values/values.local.yaml
+WSL: true
+Default route: default dev tun0 scope link
+Default is tun: true
+Tun dev: tun0
+Tun link: yes
+SOCKS: 172.30.112.1:1080
+Tun2socks running: yes
+Tun2socks pid file: /home/<user>/.local/state/wslbridge/tun2socks.pid
+Tun2socks pid: 12345
+```

@@ -7,13 +7,16 @@ import (
 	"os/exec"
 )
 
+// Runner executes external commands.
 type Runner interface {
 	Run(name string, args ...string) error
 	RunCapture(name string, args ...string) (string, error)
 }
 
+// OSRunner runs commands via os/exec.
 type OSRunner struct{}
 
+// Run executes a command and streams stdio.
 func (OSRunner) Run(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
@@ -22,6 +25,7 @@ func (OSRunner) Run(name string, args ...string) error {
 	return cmd.Run()
 }
 
+// RunCapture executes a command and returns stdout.
 func (OSRunner) RunCapture(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Stderr = os.Stderr

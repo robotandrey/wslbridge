@@ -6,18 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"wslbridge/internal/env"
 	appruntime "wslbridge/internal/runtime"
 )
 
 const defaultNameServer = "8.8.8.8"
-
-func IsWSL() bool {
-	b, err := os.ReadFile("/proc/version")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(b)), "microsoft")
-}
 
 func configureWSLConf(rt appruntime.Runtime) error {
 	backup := filepath.Join(rt.Paths.StateDir, "wsl.conf.bak")
@@ -105,4 +98,8 @@ func restoreFileIfExists(rt appruntime.Runtime, backup, target string) (bool, er
 		return false, err
 	}
 	return true, nil
+}
+
+func isWSL() bool {
+	return env.IsWSL()
 }

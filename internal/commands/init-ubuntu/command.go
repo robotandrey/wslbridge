@@ -12,14 +12,25 @@ import (
 	"wslbridge/internal/cli"
 	"wslbridge/internal/config"
 	appruntime "wslbridge/internal/runtime"
+	"wslbridge/internal/tun2socks"
 )
 
+// Command implements the Ubuntu/WSL init workflow.
 type Command struct{}
 
+// Name returns the command name.
 func (Command) Name() string { return "init-ubuntu" }
+
+// Help returns the command description.
 func (Command) Help() string {
 	return "Install deps, configure WSL DNS/hosts, setup tun2socks routing (Ubuntu/WSL)"
 }
+
+const (
+	defaultSocksPort = 1080
+	defaultTunDev    = "tun0"
+	defaultTunCIDR   = "10.0.0.2/24"
+)
 
 type flags struct {
 	skipDeps          bool
@@ -53,6 +64,7 @@ func parseFlags(args []string) (flags, error) {
 	return f, nil
 }
 
+// Run executes the init workflow for Ubuntu/WSL.
 func (Command) Run(rt appruntime.Runtime, args []string) error {
 	if goruntime.GOOS != "linux" {
 		return fmt.Errorf("init-ubuntu supports only linux")
@@ -63,97 +75,40 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 		return err
 	}
 
-	// ensure dirs
-	if err := os.MkdirAll(filepath.Dir(rt.Paths.ConfigPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(rt.Paths.ShareDir, 0o755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(rt.Paths.StateDir, 0o755); err != nil {
+	if err := ensureRuntimeDirs(rt); err != nil {
 		return err
 	}
 
-	// deps
-	if !f.skipDeps {
-		logStep("Ensuring dependencies are installed (apt)")
-		if err := rt.Platform.EnsureDeps(rt.Runner); err != nil {
-			return err
-		}
-	}
-
-	// load config (optional)
-	var cfg config.Config
-	hasCfg := false
-	if c, err := config.Load(rt.Paths.ConfigPath); err == nil {
-		cfg = c
-		hasCfg = true
-	} else if !errors.Is(err, os.ErrNotExist) {
+	if err := ensureDeps(rt, f.skipDeps); err != nil {
 		return err
 	}
 
-	// defaults
-	const (
-		defaultSocksPort = 1080
-		defaultTunDev    = "tun0"
-		defaultTunCIDR   = "10.0.0.2/24"
-	)
-
-	// effective tun params (respect config)
-	if cfg.Tun.Dev == "" {
-		cfg.Tun.Dev = defaultTunDev
+	cfg, hasCfg, err := loadConfig(rt.Paths.ConfigPath)
+	if err != nil {
+		return err
 	}
-	if cfg.Tun.CIDR == "" {
-		cfg.Tun.CIDR = defaultTunCIDR
-	}
+	applyDefaults(&cfg)
 
-	// early check route + running
 	defaultRouteLine, err := getDefaultRouteLine(rt)
 	if err != nil {
 		return err
 	}
-	if defaultIsTun(defaultRouteLine, cfg.Tun.Dev) && tun2socksIsRunning(rt.Paths.Tun2SocksPIDFile) {
-		fmt.Println("already enabled: default route is on", cfg.Tun.Dev, "and tun2socks is running")
+	if alreadyEnabled(defaultRouteLine, cfg, rt.Paths.Tun2SocksPIDFile) {
 		return nil
 	}
 
-	// Need sudo for WSL config + routes anyway.
-	if err := rt.Runner.Run("sudo", "-v"); err != nil {
-		return fmt.Errorf("sudo auth failed: %w", err)
+	if err := ensureSudo(rt); err != nil {
+		return err
 	}
 
-	// WSL-specific: disable generateHosts/generateResolvConf and set resolv.conf nameserver
-	if IsWSL() {
-		pr := cli.NewPrompter(os.Stdin, os.Stdout)
-
-		curDNS := ""
-		if hasCfg && cfg.DNS.Nameserver != "" {
-			curDNS = cfg.DNS.Nameserver
-		}
-
-		// default пустой — чтобы не “угадать” чужую корп-сетку
-		dns, err := pr.AskString("DNS nameserver (WSL)", "", curDNS, cli.ValidateIP)
-		if err != nil {
+	if isWSL() {
+		if err := configureWSL(rt, &cfg, hasCfg); err != nil {
 			return err
 		}
-		cfg.DNS.Nameserver = dns
-
-		logStep("Configuring WSL DNS and resolv.conf")
-		if err := configureWSLConf(rt); err != nil {
-			return err
-		}
-		if err := writeResolvConf(rt, cfg.DNS.Nameserver); err != nil {
-			return err
-		}
-		fmt.Println("WSL DNS configured. NOTE: wsl.conf changes may require WSL restart.")
 	}
 
-	// Save current default route line to state (best-effort)
-	if defaultRouteLine != "" {
-		_ = os.WriteFile(rt.Paths.DefaultRouteFile, []byte(defaultRouteLine+"\n"), 0o644)
-	}
+	saveDefaultRoute(rt, defaultRouteLine)
 
-	// Detect SOCKS gateway
 	logStep("Detecting SOCKS gateway")
 	gw, err := detectSocksGateway(rt, cfg, defaultRouteLine)
 	if err != nil {
@@ -162,61 +117,36 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	cfg.Socks.Host = gw
 	fmt.Println("SOCKS gateway:", cfg.Socks.Host)
 
-	// SOCKS port
-	socksPort := defaultSocksPort
-	if hasCfg && cfg.Socks.Port != 0 {
-		socksPort = cfg.Socks.Port
-	}
-	if f.socksPortOverride != 0 {
-		socksPort = f.socksPortOverride
-	} else if f.force {
-		pr := cli.NewPrompter(os.Stdin, os.Stdout)
-		cur := ""
-		if hasCfg && cfg.Socks.Port != 0 {
-			cur = strconv.Itoa(cfg.Socks.Port)
-		}
-		portStr, perr := pr.AskString("SOCKS port", strconv.Itoa(defaultSocksPort), cur, cli.ValidatePort)
-		if perr != nil {
-			return perr
-		}
-		n, _ := strconv.Atoi(strings.TrimSpace(portStr))
-		socksPort = n
+	socksPort, err := resolveSocksPort(cfg, hasCfg, f)
+	if err != nil {
+		return err
 	}
 	cfg.Socks.Port = socksPort
 
-	// Save config
 	logStep("Saving configuration")
 	if err := config.Save(rt.Paths.ConfigPath, cfg); err != nil {
 		return err
 	}
 	fmt.Println("saved config:", rt.Paths.ConfigPath)
 
-	// Ensure tun2socks
 	logStep("Ensuring tun2socks binary is available")
-	tun2socksBin, err := ensureTun2SocksBin()
+	tun2socksBin, err := tun2socks.EnsureBin()
 	if err != nil {
 		return err
 	}
 	fmt.Println("tun2socks:", tun2socksBin)
 
-	// Setup routes + start
 	logStep("Configuring tun interface and default route")
 	if err := setupTunAndRoutes(rt, cfg); err != nil {
 		return err
 	}
 
-	if tun2socksIsRunning(rt.Paths.Tun2SocksPIDFile) {
-		if f.force {
-			fmt.Println("tun2socks is running, restarting due to --force")
-			_ = stopTun2SocksIfRunning(rt, rt.Paths.Tun2SocksPIDFile)
-		} else {
-			fmt.Println("tun2socks is already running; skipping start (use --force to restart)")
-			return nil
-		}
+	if handleRunningTun2Socks(rt, f, rt.Paths.Tun2SocksPIDFile) {
+		return nil
 	}
 
 	logStep("Starting tun2socks daemon")
-	pid, err := startTun2Socks(tun2socksBin, cfg)
+	pid, err := tun2socks.Start(tun2socksBin, cfg)
 	if err != nil {
 		return err
 	}
@@ -227,4 +157,124 @@ func (Command) Run(rt appruntime.Runtime, args []string) error {
 	fmt.Println("tun2socks pid:", pid)
 	fmt.Println("log: /tmp/tun2socks.log")
 	return nil
+}
+
+func ensureRuntimeDirs(rt appruntime.Runtime) error {
+	if err := os.MkdirAll(filepath.Dir(rt.Paths.ConfigPath), 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(rt.Paths.ShareDir, 0o755); err != nil {
+		return err
+	}
+	return os.MkdirAll(rt.Paths.StateDir, 0o755)
+}
+
+func ensureDeps(rt appruntime.Runtime, skip bool) error {
+	if skip {
+		return nil
+	}
+	logStep("Ensuring dependencies are installed (apt)")
+	return rt.Platform.EnsureDeps(rt.Runner)
+}
+
+func loadConfig(path string) (config.Config, bool, error) {
+	if c, err := config.Load(path); err == nil {
+		return c, true, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return config.Config{}, false, err
+	}
+	return config.Config{}, false, nil
+}
+
+func applyDefaults(cfg *config.Config) {
+	if cfg.Tun.Dev == "" {
+		cfg.Tun.Dev = defaultTunDev
+	}
+	if cfg.Tun.CIDR == "" {
+		cfg.Tun.CIDR = defaultTunCIDR
+	}
+}
+
+func alreadyEnabled(defaultRouteLine string, cfg config.Config, pidFile string) bool {
+	if defaultIsTun(defaultRouteLine, cfg.Tun.Dev) && tun2socks.IsRunning(pidFile) {
+		fmt.Println("already enabled: default route is on", cfg.Tun.Dev, "and tun2socks is running")
+		return true
+	}
+	return false
+}
+
+func ensureSudo(rt appruntime.Runtime) error {
+	if err := rt.Runner.Run("sudo", "-v"); err != nil {
+		return fmt.Errorf("sudo auth failed: %w", err)
+	}
+	return nil
+}
+
+func configureWSL(rt appruntime.Runtime, cfg *config.Config, hasCfg bool) error {
+	pr := cli.NewPrompter(os.Stdin, os.Stdout)
+
+	curDNS := ""
+	if hasCfg && cfg.DNS.Nameserver != "" {
+		curDNS = cfg.DNS.Nameserver
+	}
+
+	dns, err := pr.AskString("DNS nameserver (WSL)", "", curDNS, cli.ValidateIP)
+	if err != nil {
+		return err
+	}
+	cfg.DNS.Nameserver = dns
+
+	logStep("Configuring WSL DNS and resolv.conf")
+	if err := configureWSLConf(rt); err != nil {
+		return err
+	}
+	if err := writeResolvConf(rt, cfg.DNS.Nameserver); err != nil {
+		return err
+	}
+	fmt.Println("WSL DNS configured. NOTE: wsl.conf changes may require WSL restart.")
+	return nil
+}
+
+func saveDefaultRoute(rt appruntime.Runtime, defaultRouteLine string) {
+	if defaultRouteLine != "" {
+		_ = os.WriteFile(rt.Paths.DefaultRouteFile, []byte(defaultRouteLine+"\n"), 0o644)
+	}
+}
+
+func resolveSocksPort(cfg config.Config, hasCfg bool, f flags) (int, error) {
+	socksPort := defaultSocksPort
+	if hasCfg && cfg.Socks.Port != 0 {
+		socksPort = cfg.Socks.Port
+	}
+	if f.socksPortOverride != 0 {
+		return f.socksPortOverride, nil
+	}
+	if !f.force {
+		return socksPort, nil
+	}
+
+	pr := cli.NewPrompter(os.Stdin, os.Stdout)
+	cur := ""
+	if hasCfg && cfg.Socks.Port != 0 {
+		cur = strconv.Itoa(cfg.Socks.Port)
+	}
+	portStr, perr := pr.AskString("SOCKS port", strconv.Itoa(defaultSocksPort), cur, cli.ValidatePort)
+	if perr != nil {
+		return 0, perr
+	}
+	n, _ := strconv.Atoi(strings.TrimSpace(portStr))
+	return n, nil
+}
+
+func handleRunningTun2Socks(rt appruntime.Runtime, f flags, pidFile string) bool {
+	if !tun2socks.IsRunning(pidFile) {
+		return false
+	}
+	if f.force {
+		fmt.Println("tun2socks is running, restarting due to --force")
+		_ = tun2socks.StopIfRunning(rt, pidFile)
+		return false
+	}
+	fmt.Println("tun2socks is already running; skipping start (use --force to restart)")
+	return true
 }

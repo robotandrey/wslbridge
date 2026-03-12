@@ -2,6 +2,7 @@ package init_ubuntu
 
 import "testing"
 
+// TestDefaultIsTun validates detection of tun default route.
 func TestDefaultIsTun(t *testing.T) {
 	cases := []struct {
 		line string

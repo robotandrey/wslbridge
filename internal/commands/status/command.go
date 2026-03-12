@@ -1,24 +1,24 @@
-package initc
+package statusc
 
 import (
 	"wslbridge/internal/driver"
 	appruntime "wslbridge/internal/runtime"
 )
 
-// Command implements the init CLI command.
+// Command implements the status CLI command.
 type Command struct{}
 
 // Name returns the command name.
-func (Command) Name() string { return "init" }
+func (Command) Name() string { return "status" }
 
 // Help returns the command description.
-func (Command) Help() string { return "Initialize wslbridge for the current OS/environment" }
+func (Command) Help() string { return "Show wslbridge status (current OS/environment)" }
 
-// Run executes the init workflow.
+// Run executes the status workflow.
 func (Command) Run(rt appruntime.Runtime, args []string) error {
 	d, err := driver.Detect()
 	if err != nil {
 		return err
 	}
-	return d.Init(rt, args)
+	return d.Status(rt, args)
 }

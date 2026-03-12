@@ -7,15 +7,18 @@ import (
 	"strings"
 )
 
+// Prompter provides interactive string prompts.
 type Prompter struct {
 	in  *bufio.Reader
 	out io.Writer
 }
 
+// NewPrompter creates a new Prompter.
 func NewPrompter(in io.Reader, out io.Writer) *Prompter {
 	return &Prompter{in: bufio.NewReader(in), out: out}
 }
 
+// AskString prompts for a string with optional validation.
 func (p *Prompter) AskString(label, def, current string, validate func(string) error) (string, error) {
 	for {
 		if current != "" {

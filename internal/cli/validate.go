@@ -10,6 +10,7 @@ import (
 
 var hostRe = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
 
+// ValidateHostOrIP validates a hostname or IP address.
 func ValidateHostOrIP(s string) error {
 	s = strings.TrimSpace(s)
 	if ip := net.ParseIP(s); ip != nil {
@@ -29,6 +30,7 @@ func ValidateHostOrIP(s string) error {
 	return nil
 }
 
+// ValidatePort validates a TCP/UDP port number.
 func ValidatePort(s string) error {
 	n, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {
@@ -40,6 +42,7 @@ func ValidatePort(s string) error {
 	return nil
 }
 
+// ValidateIP validates an IP address string.
 func ValidateIP(s string) error {
 	s = strings.TrimSpace(s)
 	if net.ParseIP(s) == nil {

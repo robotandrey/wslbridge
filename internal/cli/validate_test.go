@@ -2,6 +2,7 @@ package cli
 
 import "testing"
 
+// TestValidateHostOrIP validates host or IP inputs.
 func TestValidateHostOrIP(t *testing.T) {
 	cases := []struct {
 		val  string
@@ -23,6 +24,7 @@ func TestValidateHostOrIP(t *testing.T) {
 	}
 }
 
+// TestValidatePort validates port inputs.
 func TestValidatePort(t *testing.T) {
 	cases := []struct {
 		val  string
@@ -43,6 +45,7 @@ func TestValidatePort(t *testing.T) {
 	}
 }
 
+// TestValidateIP validates IP inputs.
 func TestValidateIP(t *testing.T) {
 	cases := []struct {
 		val  string

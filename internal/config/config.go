@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config holds wslbridge configuration.
 type Config struct {
 	Socks struct {
 		Host string `yaml:"host"`
@@ -23,6 +24,7 @@ type Config struct {
 	} `yaml:"dns"`
 }
 
+// Load reads config from the given path.
 func Load(path string) (Config, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -35,6 +37,7 @@ func Load(path string) (Config, error) {
 	return c, nil
 }
 
+// Save writes config to the given path.
 func Save(path string, c Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err

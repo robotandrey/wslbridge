@@ -1,30 +1,24 @@
 package stopc
 
 import (
-	"fmt"
-	goruntime "runtime"
-
-	initubuntu "wslbridge/internal/commands/init-ubuntu"
+	"wslbridge/internal/driver"
 	appruntime "wslbridge/internal/runtime"
 )
 
+// Command implements the stop CLI command.
 type Command struct{}
 
+// Name returns the command name.
 func (Command) Name() string { return "stop" }
+
+// Help returns the command description.
 func (Command) Help() string { return "Stop wslbridge and restore routes (current OS/environment)" }
 
+// Run executes the stop workflow.
 func (Command) Run(rt appruntime.Runtime, args []string) error {
-	switch goruntime.GOOS {
-	case "linux":
-		if initubuntu.IsWSL() {
-			return initubuntu.StopCommand{}.Run(rt, args)
-		}
-		return fmt.Errorf("linux is supported only in WSL for now")
-	case "darwin":
-		return fmt.Errorf("macOS stop is not implemented yet")
-	case "windows":
-		return fmt.Errorf("windows stop is not implemented yet")
-	default:
-		return fmt.Errorf("unsupported OS: %s", goruntime.GOOS)
+	d, err := driver.Detect()
+	if err != nil {
+		return err
 	}
+	return d.Stop(rt, args)
 }

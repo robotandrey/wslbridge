@@ -5,12 +5,14 @@ import (
 	"wslbridge/internal/platform"
 )
 
+// Runtime bundles runtime dependencies and paths.
 type Runtime struct {
 	Paths    Paths
 	Runner   execx.Runner
 	Platform platform.Platform
 }
 
+// New constructs a Runtime with resolved paths.
 func New(r execx.Runner, p platform.Platform) (Runtime, error) {
 	paths, err := DefaultPaths()
 	if err != nil {

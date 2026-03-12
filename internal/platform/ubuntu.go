@@ -7,10 +7,13 @@ import (
 	"wslbridge/internal/execx"
 )
 
+// Ubuntu implements dependency checks for Ubuntu/WSL.
 type Ubuntu struct{}
 
+// Name returns the platform name.
 func (Ubuntu) Name() string { return "ubuntu" }
 
+// EnsureDeps installs missing dependencies via apt.
 func (Ubuntu) EnsureDeps(r execx.Runner) error {
 	if _, err := exec.LookPath("apt"); err != nil {
 		return fmt.Errorf("apt not found: expected ubuntu/debian")
@@ -18,13 +21,9 @@ func (Ubuntu) EnsureDeps(r execx.Runner) error {
 
 	// Команда -> пакет
 	need := map[string]string{
-		"curl":  "curl",
-		"dig":   "dnsutils",
-		"nc":    "netcat-openbsd",
-		"socat": "socat",
-		"psql":  "postgresql-client",
-		"ip":    "iproute2",
-		"go":    "golang-go",
+		"curl": "curl",
+		"psql": "postgresql-client",
+		"go":   "golang-go",
 	}
 
 	var pkgs []string
@@ -34,7 +33,6 @@ func (Ubuntu) EnsureDeps(r execx.Runner) error {
 		}
 	}
 
-	// Всё есть — вообще ничего не делаем.
 	if len(pkgs) == 0 {
 		return nil
 	}

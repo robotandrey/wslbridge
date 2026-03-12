@@ -1,4 +1,4 @@
-package init_ubuntu
+package tun2socks
 
 import (
 	"fmt"
@@ -13,7 +13,8 @@ import (
 	appruntime "wslbridge/internal/runtime"
 )
 
-func ensureTun2SocksBin() (string, error) {
+// EnsureBin locates or installs the tun2socks binary.
+func EnsureBin() (string, error) {
 	if p, err := exec.LookPath("tun2socks"); err == nil {
 		return p, nil
 	}
@@ -57,15 +58,8 @@ func ensureTun2SocksBin() (string, error) {
 	return "", fmt.Errorf("tun2socks install finished but binary not found (check your GOBIN / GOPATH)")
 }
 
-func isExecutable(path string) bool {
-	st, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return (st.Mode() & 0o111) != 0
-}
-
-func startTun2Socks(bin string, cfg config.Config) (int, error) {
+// Start launches tun2socks and returns its PID.
+func Start(bin string, cfg config.Config) (int, error) {
 	logPath := "/tmp/tun2socks.log"
 	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
@@ -84,27 +78,74 @@ func startTun2Socks(bin string, cfg config.Config) (int, error) {
 		return 0, fmt.Errorf("start tun2socks: %w", err)
 	}
 
-	pid, err := waitForTun2SocksPID(cmd.Process.Pid)
+	pid, err := waitForPID()
 	if err != nil {
 		return 0, fmt.Errorf("start tun2socks: %w", err)
 	}
 	return pid, nil
 }
 
-func waitForTun2SocksPID(parentPID int) (int, error) {
-	parentStr := strconv.Itoa(parentPID)
+// IsRunning reports whether tun2socks is running.
+func IsRunning(pidFile string) bool {
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return anyRunning()
+	}
+
+	pidStr := strings.TrimSpace(string(b))
+	if pidStr == "" {
+		return false
+	}
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return false
+	}
+	cmd := exec.Command("kill", "-0", pidStr)
+	if err := cmd.Run(); err == nil {
+		return true
+	}
+	return pidInList(pid)
+}
+
+// StopIfRunning stops tun2socks if it is running.
+func StopIfRunning(rt appruntime.Runtime, pidFile string) error {
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return stopByName(rt)
+	}
+	pidStr := strings.TrimSpace(string(b))
+	if pidStr == "" {
+		return stopByName(rt)
+	}
+	if _, err := strconv.Atoi(pidStr); err != nil {
+		return stopByName(rt)
+	}
+	_ = rt.Runner.Run("sudo", "kill", pidStr)
+	_ = os.Remove(pidFile)
+	return nil
+}
+
+func isExecutable(path string) bool {
+	st, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return (st.Mode() & 0o111) != 0
+}
+
+func waitForPID() (int, error) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if pid, ok := childTun2SocksPID(parentStr); ok {
+		if pid, ok := anyPID(); ok {
 			return pid, nil
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return 0, fmt.Errorf("timed out waiting for tun2socks pid (parent %d)", parentPID)
+	return 0, fmt.Errorf("timed out waiting for tun2socks pid")
 }
 
-func childTun2SocksPID(parentPID string) (int, bool) {
-	out, err := exec.Command("pgrep", "-P", parentPID, "-x", "tun2socks").Output()
+func anyPID() (int, bool) {
+	out, err := exec.Command("pgrep", "-x", "tun2socks").Output()
 	if err != nil {
 		return 0, false
 	}
@@ -119,47 +160,32 @@ func childTun2SocksPID(parentPID string) (int, bool) {
 	return pid, true
 }
 
-func tun2socksIsRunning(pidFile string) bool {
-	b, err := os.ReadFile(pidFile)
+func anyRunning() bool {
+	out, err := exec.Command("pgrep", "-x", "tun2socks").Output()
 	if err != nil {
-		// Fall back to detecting any running tun2socks process
-		cmd := exec.Command("pgrep", "-x", "tun2socks")
-		out, perr := cmd.Output()
-		if perr != nil {
-			return false
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
+}
+
+func pidInList(pid int) bool {
+	out, err := exec.Command("pgrep", "-x", "tun2socks").Output()
+	if err != nil {
+		return false
+	}
+	for _, field := range strings.Fields(string(out)) {
+		n, err := strconv.Atoi(field)
+		if err != nil {
+			continue
 		}
-		return strings.TrimSpace(string(out)) != ""
+		if n == pid {
+			return true
+		}
 	}
-
-	pidStr := strings.TrimSpace(string(b))
-	if pidStr == "" {
-		return false
-	}
-	if _, err := strconv.Atoi(pidStr); err != nil {
-		return false
-	}
-	cmd := exec.Command("kill", "-0", pidStr)
-	return cmd.Run() == nil
+	return false
 }
 
-func stopTun2SocksIfRunning(rt appruntime.Runtime, pidFile string) error {
-	b, err := os.ReadFile(pidFile)
-	if err != nil {
-		return stopTun2SocksByName(rt)
-	}
-	pidStr := strings.TrimSpace(string(b))
-	if pidStr == "" {
-		return stopTun2SocksByName(rt)
-	}
-	if _, err := strconv.Atoi(pidStr); err != nil {
-		return stopTun2SocksByName(rt)
-	}
-	_ = rt.Runner.Run("sudo", "kill", pidStr)
-	_ = os.Remove(pidFile)
-	return nil
-}
-
-func stopTun2SocksByName(rt appruntime.Runtime) error {
+func stopByName(rt appruntime.Runtime) error {
 	out, err := exec.Command("pgrep", "-x", "tun2socks").Output()
 	if err != nil {
 		return nil

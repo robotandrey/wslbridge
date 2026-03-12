@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	LocalConfigDir  = ".values"
+	// LocalConfigDir is the project-local config directory.
+	LocalConfigDir = ".values"
+	// LocalConfigFile is the project-local config filename.
 	LocalConfigFile = "values.local.yaml"
 )
 

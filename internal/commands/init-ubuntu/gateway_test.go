@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestParseViaIP validates route parsing.
 func TestParseViaIP(t *testing.T) {
 	cases := []struct {
 		line string
@@ -26,6 +27,7 @@ func TestParseViaIP(t *testing.T) {
 	}
 }
 
+// TestReadResolvConfNameserver validates nameserver parsing.
 func TestReadResolvConfNameserver(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "resolv.conf")
@@ -40,6 +42,7 @@ func TestReadResolvConfNameserver(t *testing.T) {
 	}
 }
 
+// TestIncrementIPv4 validates IPv4 increment logic.
 func TestIncrementIPv4(t *testing.T) {
 	ip := net.IPv4(10, 0, 0, 0)
 	got, err := incrementIPv4(ip)

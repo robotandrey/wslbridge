@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestFindProjectRoot validates project root discovery.
 func TestFindProjectRoot(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example"), 0o644); err != nil {
@@ -25,6 +26,7 @@ func TestFindProjectRoot(t *testing.T) {
 	}
 }
 
+// TestResolveProjectLocalConfigPath validates local config path resolution.
 func TestResolveProjectLocalConfigPath(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example"), 0o644); err != nil {
@@ -56,6 +58,7 @@ func TestResolveProjectLocalConfigPath(t *testing.T) {
 	}
 }
 
+// TestResolveConfigPath_UsesLocalForWslbridgeRepo validates repo-local config preference.
 func TestResolveConfigPath_UsesLocalForWslbridgeRepo(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module wslbridge"), 0o644); err != nil {
@@ -87,6 +90,7 @@ func TestResolveConfigPath_UsesLocalForWslbridgeRepo(t *testing.T) {
 	}
 }
 
+// TestResolveConfigPath_FallsBackToUserConfig validates user config fallback.
 func TestResolveConfigPath_FallsBackToUserConfig(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")

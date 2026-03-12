@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 )
 
+// Paths groups filesystem paths used by the app.
 type Paths struct {
 	ConfigPath       string
 	ShareDir         string
@@ -13,6 +14,7 @@ type Paths struct {
 	Tun2SocksPIDFile string
 }
 
+// DefaultPaths returns default user-scoped paths.
 func DefaultPaths() (Paths, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
