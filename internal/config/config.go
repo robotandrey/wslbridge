@@ -22,6 +22,23 @@ type Config struct {
 	DNS struct {
 		Nameserver string `yaml:"nameserver"`
 	} `yaml:"dns"`
+
+	PGBouncer struct {
+		WardenScheme     string            `yaml:"warden_scheme"`
+		WardenHost       string            `yaml:"warden_host"`
+		EndpointMask     string            `yaml:"endpoint_mask"`
+		ServiceName      string            `yaml:"service_name"`
+		ServiceNames     []string          `yaml:"service_names,omitempty"`
+		ServicePorts     map[string]int    `yaml:"service_ports,omitempty"`
+		ServiceTargets   map[string]string `yaml:"service_targets,omitempty"`
+		ServiceInstances map[string]string `yaml:"service_instances,omitempty"`
+		WardenURL        string            `yaml:"warden_url,omitempty"` // legacy, kept for backward compatibility
+		LocalHost        string            `yaml:"local_host"`
+		LocalPort        int               `yaml:"local_port"`
+		PreferRole       string            `yaml:"prefer_role"`
+		TargetAddress    string            `yaml:"target_address"`
+		TargetInstance   string            `yaml:"target_instance"`
+	} `yaml:"pgbouncer"`
 }
 
 // Load reads config from the given path.

@@ -7,11 +7,21 @@ import (
 	"wslbridge/internal/command"
 	"wslbridge/internal/commands"
 	"wslbridge/internal/execx"
+	"wslbridge/internal/pgbouncer"
 	"wslbridge/internal/platform"
 	"wslbridge/internal/runtime"
 )
 
 func main() {
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == pgbouncer.HiddenProxyRunCommand {
+		if err := pgbouncer.RunProxyProcess(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	platformInfo, err := platform.Detect()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -26,7 +36,6 @@ func main() {
 
 	reg := command.New(commands.All()...)
 
-	args := os.Args[1:]
 	if len(args) == 0 || isHelp(args[0]) {
 		printHelp(reg)
 		os.Exit(0)

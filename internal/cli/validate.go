@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,6 +48,25 @@ func ValidateIP(s string) error {
 	s = strings.TrimSpace(s)
 	if net.ParseIP(s) == nil {
 		return fmt.Errorf("must be a valid IP address")
+	}
+	return nil
+}
+
+// ValidateURL validates a URL string.
+func ValidateURL(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return fmt.Errorf("must not be empty")
+	}
+	u, err := url.ParseRequestURI(s)
+	if err != nil {
+		return fmt.Errorf("must be a valid URL")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("scheme must be http or https")
+	}
+	if u.Host == "" {
+		return fmt.Errorf("host must not be empty")
 	}
 	return nil
 }

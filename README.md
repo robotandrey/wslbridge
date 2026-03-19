@@ -61,6 +61,12 @@ wslbridge init --force --socks-port=1080
 - `wslbridge init` — настройка DNS/роутинга и запуск `tun2socks`
 - `wslbridge status` — показать текущий статус
 - `wslbridge stop` — остановить `tun2socks` и вернуть маршруты
+- `wslbridge pgbouncer init` — один раз настроить Warden URL/host и endpoint mask
+- `wslbridge pgbouncer start` — после перезагрузки/остановки заново поднять local pgbouncer для всех добавленных баз
+- `wslbridge pgbouncer status` — показать состояние local pgbouncer и список баз
+- `wslbridge pgbouncer stop` — остановить local pgbouncer
+- `wslbridge pgbouncer add <service>` — добавить базу (service name), проверить endpoint TCP-коннект и сразу сделать доступной через local pgbouncer
+- `wslbridge pgbouncer remove <service>` — удалить базу из списка
 - `wslbridge help` — краткая справка по доступным командам
 
 ---
@@ -76,8 +82,56 @@ wslbridge init --force --socks-port=1080
 ## Где что лежит
 
 - Конфиг: `<repo>/.values/values.local.yaml`
-- Состояние: `~/.local/state/wslbridge/` (`default_route.txt`, `tun2socks.pid`)
+- Состояние: `~/.local/state/wslbridge/` (`default_route.txt`, `tun2socks.pid`, `pgbouncer-proxy.pid`, `pgbouncer-proxy.log`, `pgbouncer.ini`, `pgbouncer-users.txt`)
 - Логи `tun2socks`: `/tmp/tun2socks.log`
+- Логи `pgbouncer`: `~/.local/state/wslbridge/pgbouncer-proxy.log`
+
+---
+
+## Warden -> pgbouncer
+
+Для подключения баз из IDE без ручного `socat`:
+
+```bash
+wslbridge pgbouncer init
+wslbridge pgbouncer add chatapi-ng
+wslbridge pgbouncer add bozon-saturn
+```
+
+`pgbouncer init`:
+- спрашивает Warden URL/host;
+- если URL полный (включая `.../endpoints?service=...`), автоматически извлекает host и mask;
+- если введён только host/base URL, дополнительно спрашивает mask (по умолчанию `/endpoints?service=<db>.pg:bouncer`).
+
+`pgbouncer add <service>`:
+- спрашивает только имя базы (если не передано аргументом);
+- подставляет его в `warden host + mask`, запрашивает endpoint из Warden;
+- делает TCP-check endpoint;
+- сохраняет базу в список только при успешной проверке;
+- обновляет/поднимает local `pgbouncer`, чтобы база сразу была доступна по тому же `localhost:<port>`.
+
+`pgbouncer start`:
+- использует уже настроенные Warden host/mask и добавленные базы;
+- подтягивает актуальные endpoint-ы из Warden и запускает local `pgbouncer` на одном порту (по умолчанию `15432`);
+- нужен как восстановительный запуск после перезагрузки WSL или `pgbouncer stop`.
+
+Проверка и остановка:
+
+```bash
+wslbridge pgbouncer status
+wslbridge pgbouncer stop
+```
+
+Работа со списком баз:
+
+```bash
+wslbridge pgbouncer add chatapi-ng
+wslbridge pgbouncer add bozon-saturn
+wslbridge pgbouncer status
+wslbridge pgbouncer start     # восстановить запуск после рестарта WSL
+```
+
+`pgbouncer add <service>` добавляет сервис только если Warden вернул endpoint и TCP-коннект до него успешен.
 
 ---
 

@@ -63,3 +63,24 @@ func TestValidateIP(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateURL validates URL inputs.
+func TestValidateURL(t *testing.T) {
+	cases := []struct {
+		val  string
+		want bool
+	}{
+		{"http://warden.stg.s.bozon.tech/endpoints?service=chatapi-ng.pg:bouncer", true},
+		{"https://example.org/path", true},
+		{"ftp://example.org/path", false},
+		{"not-a-url", false},
+		{"", false},
+	}
+
+	for _, tc := range cases {
+		err := ValidateURL(tc.val)
+		if (err == nil) != tc.want {
+			t.Fatalf("ValidateURL(%q) err=%v, want ok=%v", tc.val, err, tc.want)
+		}
+	}
+}
