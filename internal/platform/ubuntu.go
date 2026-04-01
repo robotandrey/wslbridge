@@ -21,10 +21,9 @@ func (Ubuntu) EnsureDeps(r execx.Runner) error {
 
 	// Команда -> пакет
 	need := map[string]string{
-		"curl":      "curl",
-		"psql":      "postgresql-client",
-		"go":        "golang-go",
-		"pgbouncer": "pgbouncer",
+		"curl": "curl",
+		"psql": "postgresql-client",
+		"go":   "golang-go",
 	}
 
 	var pkgs []string

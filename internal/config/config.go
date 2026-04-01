@@ -27,6 +27,9 @@ type Config struct {
 		WardenScheme     string            `yaml:"warden_scheme"`
 		WardenHost       string            `yaml:"warden_host"`
 		EndpointMask     string            `yaml:"endpoint_mask"`
+		AuthLookupUser   string            `yaml:"auth_lookup_user"`
+		AuthLookupPass   string            `yaml:"auth_lookup_password,omitempty"`
+		AuthQuery        string            `yaml:"auth_query"`
 		ServiceName      string            `yaml:"service_name"`
 		ServiceNames     []string          `yaml:"service_names,omitempty"`
 		ServicePorts     map[string]int    `yaml:"service_ports,omitempty"`

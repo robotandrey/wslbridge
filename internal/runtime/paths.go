@@ -7,14 +7,14 @@ import (
 
 // Paths groups filesystem paths used by the app.
 type Paths struct {
-	ConfigPath            string
-	ShareDir              string
-	StateDir              string
-	DefaultRouteFile      string
-	Tun2SocksPIDFile      string
-	PGBouncerPIDFile      string
-	PGBouncerProxyMeta    string
-	PGBouncerProxyLogFile string
+	ConfigPath       string
+	ShareDir         string
+	StateDir         string
+	DefaultRouteFile string
+	Tun2SocksPIDFile string
+	DBProxyPIDFile   string
+	DBProxyMetaFile  string
+	DBProxyLogFile   string
 }
 
 // DefaultPaths returns default user-scoped paths.
@@ -29,13 +29,13 @@ func DefaultPaths() (Paths, error) {
 	state := filepath.Join(home, ".local", "state", "wslbridge")
 
 	return Paths{
-		ConfigPath:            filepath.Join(cfgDir, "config.yaml"),
-		ShareDir:              share,
-		StateDir:              state,
-		DefaultRouteFile:      filepath.Join(state, "default_route.txt"),
-		Tun2SocksPIDFile:      filepath.Join(state, "tun2socks.pid"),
-		PGBouncerPIDFile:      filepath.Join(state, "pgbouncer-proxy.pid"),
-		PGBouncerProxyMeta:    filepath.Join(state, "pgbouncer-proxy.json"),
-		PGBouncerProxyLogFile: filepath.Join(state, "pgbouncer-proxy.log"),
+		ConfigPath:       filepath.Join(cfgDir, "config.yaml"),
+		ShareDir:         share,
+		StateDir:         state,
+		DefaultRouteFile: filepath.Join(state, "default_route.txt"),
+		Tun2SocksPIDFile: filepath.Join(state, "tun2socks.pid"),
+		DBProxyPIDFile:   filepath.Join(state, "db-proxy.pid"),
+		DBProxyMetaFile:  filepath.Join(state, "db-proxy.json"),
+		DBProxyLogFile:   filepath.Join(state, "db-proxy.log"),
 	}, nil
 }
