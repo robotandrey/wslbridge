@@ -114,7 +114,7 @@ func (s *initService) enableTrafficBridge() error {
 	}
 
 	logStep("Starting tun2socks daemon")
-	pid, err := tun2socks.Start(s.tun2socksBin, s.cfg)
+	pid, err := tun2socks.Start(s.tun2socksBin, s.cfg, s.rt.Paths.Tun2SocksLogFile)
 	if err != nil {
 		return err
 	}
@@ -123,6 +123,6 @@ func (s *initService) enableTrafficBridge() error {
 	}
 
 	fmt.Println("tun2socks pid:", pid)
-	fmt.Println("log: /tmp/tun2socks.log")
+	fmt.Println("log:", s.rt.Paths.Tun2SocksLogFile)
 	return nil
 }

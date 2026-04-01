@@ -12,6 +12,7 @@ type Paths struct {
 	StateDir         string
 	DefaultRouteFile string
 	Tun2SocksPIDFile string
+	Tun2SocksLogFile string
 	DBProxyPIDFile   string
 	DBProxyMetaFile  string
 	DBProxyLogFile   string
@@ -34,6 +35,7 @@ func DefaultPaths() (Paths, error) {
 		StateDir:         state,
 		DefaultRouteFile: filepath.Join(state, "default_route.txt"),
 		Tun2SocksPIDFile: filepath.Join(state, "tun2socks.pid"),
+		Tun2SocksLogFile: filepath.Join(state, "tun2socks.log"),
 		DBProxyPIDFile:   filepath.Join(state, "db-proxy.pid"),
 		DBProxyMetaFile:  filepath.Join(state, "db-proxy.json"),
 		DBProxyLogFile:   filepath.Join(state, "db-proxy.log"),
