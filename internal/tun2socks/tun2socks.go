@@ -40,7 +40,7 @@ func EnsureBin() (string, error) {
 		return "", fmt.Errorf("tun2socks not found and go is not installed")
 	}
 
-	cmd := exec.Command("go", "install", "github.com/eycorsican/go-tun2socks/cmd/tun2socks@latest")
+	cmd := exec.Command("go", "install", "github.com/xjasonlyu/tun2socks/v2@v2.6.0")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -59,8 +59,7 @@ func EnsureBin() (string, error) {
 }
 
 // Start launches tun2socks and returns its PID.
-func Start(bin string, cfg config.Config) (int, error) {
-	logPath := "/tmp/tun2socks.log"
+func Start(bin string, cfg config.Config, logPath string) (int, error) {
 	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return 0, fmt.Errorf("open tun2socks log: %w", err)
@@ -78,7 +77,7 @@ func Start(bin string, cfg config.Config) (int, error) {
 		return 0, fmt.Errorf("start tun2socks: %w", err)
 	}
 
-	pid, err := waitForPID()
+	pid, err := waitForPID(10 * time.Second)
 	if err != nil {
 		return 0, fmt.Errorf("start tun2socks: %w", err)
 	}
@@ -133,8 +132,8 @@ func isExecutable(path string) bool {
 	return (st.Mode() & 0o111) != 0
 }
 
-func waitForPID() (int, error) {
-	deadline := time.Now().Add(2 * time.Second)
+func waitForPID(timeout time.Duration) (int, error) {
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if pid, ok := anyPID(); ok {
 			return pid, nil

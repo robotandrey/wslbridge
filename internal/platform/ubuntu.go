@@ -19,7 +19,6 @@ func (Ubuntu) EnsureDeps(r execx.Runner) error {
 		return fmt.Errorf("apt not found: expected ubuntu/debian")
 	}
 
-	// Команда -> пакет
 	need := map[string]string{
 		"curl": "curl",
 		"psql": "postgresql-client",
