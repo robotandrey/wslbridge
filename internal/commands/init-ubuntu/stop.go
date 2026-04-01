@@ -90,13 +90,67 @@ func parseStopFlags(args []string) error {
 }
 
 func restoreDefaultRoute(rt appruntime.Runtime, line string) error {
-	fields := strings.Fields(line)
-	if len(fields) == 0 || fields[0] != "default" {
-		return fmt.Errorf("invalid default route line: %q", line)
+	args, err := buildRestoreDefaultRouteArgs(line)
+	if err != nil {
+		return err
 	}
-	args := append([]string{"ip", "route", "replace"}, fields...)
 	if err := rt.Runner.Run("sudo", args...); err != nil {
 		return fmt.Errorf("restore default route: %w", err)
 	}
 	return nil
+}
+
+func buildRestoreDefaultRouteArgs(line string) ([]string, error) {
+	fields := strings.Fields(strings.TrimSpace(line))
+	if len(fields) == 0 || fields[0] != "default" {
+		return nil, fmt.Errorf("invalid default route line: %q", line)
+	}
+
+	pairKeys := map[string]bool{
+		"via":      true,
+		"dev":      true,
+		"metric":   true,
+		"src":      true,
+		"proto":    true,
+		"scope":    true,
+		"table":    true,
+		"mtu":      true,
+		"advmss":   true,
+		"rtt":      true,
+		"rttvar":   true,
+		"window":   true,
+		"cwnd":     true,
+		"initcwnd": true,
+		"initrwnd": true,
+		"pref":     true,
+	}
+	flagKeys := map[string]bool{
+		"onlink": true,
+	}
+
+	args := []string{"ip", "route", "replace", "default"}
+	hasNextHop := false
+	for i := 1; i < len(fields); i++ {
+		token := fields[i]
+		switch {
+		case pairKeys[token]:
+			if i+1 >= len(fields) {
+				return nil, fmt.Errorf("invalid default route line: %q", line)
+			}
+			args = append(args, token, fields[i+1])
+			if token == "via" || token == "dev" {
+				hasNextHop = true
+			}
+			i++
+		case flagKeys[token]:
+			args = append(args, token)
+		default:
+			// Ignore kernel-emitted tokens that are not safe to replay verbatim.
+		}
+	}
+
+	if !hasNextHop {
+		return nil, fmt.Errorf("invalid default route line: %q", line)
+	}
+	return args, nil
 }

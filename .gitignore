@@ -33,3 +33,6 @@ go.work.sum
 
 # local config
 .values/values.local.yaml
+
+# local bin
+bin
